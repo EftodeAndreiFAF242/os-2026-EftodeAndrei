@@ -1,0 +1,87 @@
+Lab 10 - Add Your Own System Call: trace (xv6)
+
+Student: Eftode Andrei, FAF-242
+Tree: ~/xv6-riscv, branch lab (xv6 revision 06aad25 plus Labs 4, 6 and 8)
+Commits: be310d9 "Lab 10: trace system call"
+         453cf78 "Lab 10 optional: sysinfo system call"
+
+The path of number 23
+  user/trace.c calls trace(mask)
+  -> user/usys.S (made by usys.pl): li a7, SYS_trace ; ecall ; ret
+  -> the kernel: syscall() reads a7 = 23, runs syscalls[23] = sys_trace
+  -> sys_trace: argint(0) reads a0 = mask, stores it in myproc()->trace_mask
+  -> from now on syscall() prints every call whose bit is on in the mask
+
+Check 1 (Part 1 only):
+  $ trace 32 grep hello README
+  3 trace: unknown sys call 23
+  trace: failed
+
+Check 2 (Parts 1 and 2):
+  $ trace 32 grep hello README
+  3: syscall read -> 1023
+  3: syscall read -> 965
+  3: syscall read -> 453
+  3: syscall read -> 0
+  1023 + 965 + 453 = 2441 = size of README (ls README: README 2 2 2441)
+
+Part 3 runs:
+  trace 2147483647 grep hello README  -> trace 0, exec 3, open 3,
+                                         read 1023/965/453/0, close 0 (pid 4)
+  trace 2 usertests forkforkfork      -> fork lines from pids 3, 4, 5, 6
+                                         and 34, the last "5: fork -> -1",
+                                         then OK, ALL TESTS PASSED
+  trace 65536 echo hi                 -> hi6: syscall write -> 2
+                                         (empty line)
+                                         6: syscall write -> 1
+  trace 2129920 grep hello README     -> 7: syscall open -> 3
+                                         7: syscall close -> 0
+
+Observe
+
+1. The mask 32 is 2^5: only bit 5 is on, and 5 is SYS_read. The kernel
+   prints a call only when ((p->trace_mask >> num) & 1) is 1. The bits
+   of open (15) and close (21) are 0, so they are not printed. They do
+   happen: with all bits on (2147483647) grep shows open -> 3 and
+   close -> 0 around the four reads.
+
+2. np->trace_mask = p->trace_mask;  in fork() (kfork in kernel/proc.c).
+   A child gets a copy of its parent's mask, so the children and the
+   grandchildren of usertests trace their forks too. Without that line
+   a new process starts with mask 0 and only the process that called
+   trace would print. (exec does not reset it either: exec replaces the
+   program, but the struct proc with the mask stays.)
+
+3. echo calls write twice: write(1, "hi", 2) and then write(1, "\n", 1)
+   (user/echo.c). The kernel prints the trace line right after each
+   write returns: after "hi" is already on the screen and before echo
+   writes the new line. So the line "6: syscall write -> 2" sticks to
+   "hi", then the "\n" of echo makes an empty line, then the trace line
+   of the second write (-> 1, one byte).
+
+4. 2^15 + 2^21 = 32768 + 2097152 = 2129920 (bits 15 and 21 on, nothing
+   else). trace 2129920 grep hello README printed only open -> 3 and
+   close -> 0.
+
+Optional: sysinfo (number 24)
+  kernel/sysinfo.h   struct sysinfo { uint64 freemem; uint64 nproc; }
+  kernel/kalloc.c    freemem(): counts the pages on the free list x 4096
+  kernel/proc.c      nproc(): counts the slots of proc[] that are not UNUSED
+  kernel/sysproc.c   sys_sysinfo(): argaddr(0), fills the struct, copyout()
+  syscall.h/.c, user.h, usys.pl, Makefile: the same recipe as trace
+  user/sysinfo.c     prints the two numbers, then calls sysinfo with a bad
+                     pointer
+
+  $ sysinfo
+  free memory: 133251072 bytes (32532 pages)
+  processes in use: 3
+  with a bad pointer sysinfo returns -1
+  $ sleep 300 &
+  $ sysinfo
+  free memory: 133210112 bytes (32522 pages)
+  processes in use: 4
+  with a bad pointer sysinfo returns -1
+
+  3 processes: init, sh and sysinfo itself; the background sleep adds one
+  process and takes 10 pages. The bad pointer gives -1 because copyout()
+  checks the address; the kernel does not crash.
