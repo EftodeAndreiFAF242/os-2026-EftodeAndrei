@@ -1,0 +1,71 @@
+Lab 13 - Semaphores in Your Own Kernel (xv6)
+
+Student: Eftode Andrei, FAF-242
+Tree: ~/xv6-riscv, branch lab (xv6 revision 06aad25 plus Labs 4, 6, 8 and 10)
+
+Numbers
+  24 sem_init, 25 sem_down, 26 sem_up (the sheet demands them)
+  27 sem_trydown (the optional part)
+  28 sysinfo: my Lab 10 sysinfo had 24, so I moved it to free that number
+
+Check 1 (Part 1 only):
+  $ semtest
+  3 semtest: unknown sys call 24
+  4 semtest: unknown sys call 25
+  child: I ran after the parent
+  parent: done, I let the child go
+
+Check 2 (Parts 1 and 2):
+  $ semtest
+  parent: done, I let the child go
+  child: I ran after the parent
+  ping 1
+    pong 1
+  ping 2
+    pong 2
+  ping 3
+    pong 3
+  semtest: OK
+
+Observe
+
+1. One line of mix costs 31 write() system calls: 30 letters and the
+   new line. Between two of these calls the other process, running on
+   another CPU, can write its own letter. So the letters mix.
+
+2. sem_down(3); before the inner for, and sem_up(3); after it. Everything
+   between them, the 31 writes of one line, is the critical section.
+
+3. wakeup(s) wakes every process that sleeps on s, but sem_up added only
+   one unit. The first to get the spinlock takes it; the others find
+   value 0 again and must go back to sleep. A process that never slept
+   can also take the unit first.
+
+4. sem_up needs the same spinlock, so it would spin forever and nobody
+   could wake the sleeper. This kernel stops even earlier: I removed the
+   release() line in a separate copy of the tree, and semtest printed
+   "panic: sched locks". The check is in sched(), kernel/proc.c: a
+   process may hold only its own p->lock when it gives up the CPU.
+
+Optional: sem_trydown (number 27)
+  kernel/sem.c    sys_sem_trydown(): value 0 -> release the lock, return -1
+  user/semtry.c   shows both answers
+
+  $ semtry
+  first try: 0
+  second try: -1
+  after sem_up: 0
+
+Still working after the change of numbers:
+  $ sysinfo
+  free memory: 133251072 bytes (32532 pages)
+  processes in use: 3
+  with a bad pointer sysinfo returns -1
+  $ trace 117440512 semtest      (bits 24, 25 and 26: the three calls)
+  4: syscall sem_init -> 0
+  parent: done, I let the child go
+  4: syscall sem_up -> 0
+  5: syscall sem_down -> 0
+  child: I ran after the parent
+  ...
+  semtest: OK
