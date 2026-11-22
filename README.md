@@ -17,8 +17,11 @@ Each lab has its own folder. Every folder holds the Word report, the files the l
 | [`lab8/`](lab8/) | 8 | The same calls, inside your own OS (xv6) | Report, `run.c`, `pingpong.c`, `primes.c`, `Makefile`, `notes.md`, screenshots (plus `sleep.c`, `args.c`, `mystat.c`, `find.c` from Labs 4 and 6, which the Makefile also builds) |
 | [`lab9/`](lab9/) | 9 | Watching system calls with strace (Linux) | Report, `syscalls.c`, `report.md`, screenshots |
 | [`lab10/`](lab10/) | 10 | Add your own system call: trace (xv6) | Report, the changed xv6 files in `kernel/` and `user/` (`trace.c`, and the optional `sysinfo`), `Makefile`, `lab10.patch`, `notes.txt`, screenshots (plus the programs of Labs 4, 6 and 8, which the Makefile also builds) |
+| [`lab11/`](lab11/) | 11 | The race and the semaphore (Linux) | Report, `race.c`, `mutex.c`, `sem.c`, `order.c`, `parking.c`, the optional `atomic.c`, `report.md`, screenshots |
+| [`lab12/`](lab12/) | 12 | Producer, consumer and the other tools (Linux) | Report, `prodcons.c`, `condvar.c`, `readers.c`, `deadlock.c` (fixed), `report.md`, screenshots |
+| [`lab13/`](lab13/) | 13 | Semaphores in your own kernel (xv6) | Report, the changed xv6 files in `kernel/` and `user/` (`sem.c`, `semtest.c`, `mix.c`, and the optional `sem_trydown` with `semtry.c`), `Makefile`, `lab13.patch`, `notes.txt`, screenshots (plus the programs of Labs 4, 6, 8 and 10, which the Makefile also builds) |
 
-The labs follow two tracks. Track A looks at a real operating system, Linux, from the outside (Labs 1, 3, 5, 7 and 9). Track B builds on a small teaching operating system, xv6 (Labs 2, 4, 6, 8 and 10).
+The labs follow two tracks. Track A looks at a real operating system, Linux, from the outside (Labs 1, 3, 5, 7, 9, 11 and 12). Track B builds on a small teaching operating system, xv6 (Labs 2, 4, 6, 8, 10 and 13).
 
 ## Where the work is done
 
