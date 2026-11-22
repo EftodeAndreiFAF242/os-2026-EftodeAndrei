@@ -21,13 +21,13 @@ void *one(void *arg) {
 }
 
 void *two(void *arg) {
-    pthread_mutex_lock(&B);             /* the fix: lock A first here too */
+    pthread_mutex_lock(&A);             /* the fix: lock A first here too */
     printf("two: I have B, I want A\n");
     sleep(1);
-    pthread_mutex_lock(&A);             /* waits for one */
+    pthread_mutex_lock(&B);             /* waits for one */
     printf("two: I have both\n");
-    pthread_mutex_unlock(&A);
     pthread_mutex_unlock(&B);
+    pthread_mutex_unlock(&A);
     return NULL;
 }
 
