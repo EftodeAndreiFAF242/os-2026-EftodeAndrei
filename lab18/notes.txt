@@ -1,0 +1,21 @@
+Lab 18 - Build a User-Level Thread Switch
+Eftode Andrei, FAF-242
+
+Observe: What exactly does thread_switch save and load? Why is ra the
+register that makes execution continue in the other thread?
+
+thread_switch saves 14 registers of the old thread into its struct context:
+ra, sp and s0 to s11. Each one is 8 bytes, so a context is 112 bytes. Then it
+loads the same 14 registers from the context of the new thread.
+
+These are the callee-saved registers, the ones a function must give back
+unchanged. The other registers (t0-t6, a0-a7) do not need saving: the C
+compiler already keeps what it still needs from them before it calls
+thread_switch, as before any function call.
+
+ra matters because the last instruction is ret, and ret means "jump to the
+address in ra". After the load, ra holds the address saved by the other
+thread, so ret lands right after that thread's own call to thread_switch.
+For a new thread, thread_create put the address of its function in ra, so the
+first ret starts the function. sp is loaded together with ra, so the thread
+also continues on its own stack.
