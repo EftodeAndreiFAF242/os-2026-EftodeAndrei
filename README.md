@@ -34,6 +34,7 @@ The labs follow two tracks. Track A looks at a real operating system, Linux, fro
 - Every xv6 folder (`lab2/`, `lab4/`, `lab6/`, `lab8/`) builds on its own: copy its `.c` files into `user/` and its `Makefile` into a fresh xv6 tree, then run `make qemu`. This was checked on revision `06aad25` and on the current `f780d78`.
 - Lab 10 changes the kernel, so `lab10/` keeps the layout of the tree: copy its `kernel/`, `user/` and `Makefile` over a fresh xv6 tree at `06aad25`, then run `make qemu`. This was checked from a fresh clone of this repository, on `06aad25` and on the current upstream `e93dabe`.
 - Lab 13 keeps the same layout: copy its `kernel/`, `user/` and `Makefile` over a fresh xv6 tree at `06aad25`, then run `make qemu`. This was checked from a fresh clone of this repository, on `06aad25` and on the current upstream `fa2ddcb`. Lab 13 needs the numbers 24 to 26, so its `sysinfo` has the number 28 (in `lab10/` it is still 24).
+- Lab 18 keeps the same layout: copy its `kernel/`, `user/` and `Makefile` over a fresh xv6 tree at `06aad25`, then run `make qemu`. This was checked from a fresh clone of this repository, on `06aad25` and on the current upstream `fa2ddcb`.
 
 ## How a lab is added
 
