@@ -20,8 +20,10 @@ Each lab has its own folder. Every folder holds the Word report, the files the l
 | [`lab11/`](lab11/) | 11 | The race and the semaphore (Linux) | Report, `race.c`, `mutex.c`, `sem.c`, `order.c`, `parking.c`, the optional `atomic.c`, `report.md`, screenshots |
 | [`lab12/`](lab12/) | 12 | Producer, consumer and the other tools (Linux) | Report, `prodcons.c`, `condvar.c`, `readers.c`, `deadlock.c` (fixed), `report.md`, screenshots |
 | [`lab13/`](lab13/) | 13 | Semaphores in your own kernel (xv6) | Report, the changed xv6 files in `kernel/` and `user/` (`sem.c`, `semtest.c`, `mix.c`, and the optional `sem_trydown` with `semtry.c`), `Makefile`, `lab13.patch`, `notes.txt`, screenshots (plus the programs of Labs 4, 6, 8 and 10, which the Makefile also builds) |
+| [`lab17/`](lab17/) | 17 | Threads share memory, and race (Linux) | Report, `fire.c`, `fire4.c`, `lost.sh`, `report.md`, screenshots |
+| [`lab18/`](lab18/) | 18 | Build a user-level thread switch (xv6) | Report, `user/uthread.c`, `user/uthread_switch.S`, `Makefile`, `lab18.patch`, `notes.txt`, screenshots (plus the files of Labs 4, 6, 8, 10 and 13, which the Makefile also builds) |
 
-The labs follow two tracks. Track A looks at a real operating system, Linux, from the outside (Labs 1, 3, 5, 7, 9, 11 and 12). Track B builds on a small teaching operating system, xv6 (Labs 2, 4, 6, 8, 10 and 13).
+The labs follow two tracks. Track A looks at a real operating system, Linux, from the outside (Labs 1, 3, 5, 7, 9, 11, 12 and 17). Track B builds on a small teaching operating system, xv6 (Labs 2, 4, 6, 8, 10, 13 and 18).
 
 ## Where the work is done
 
