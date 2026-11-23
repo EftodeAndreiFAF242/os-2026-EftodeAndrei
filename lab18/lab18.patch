@@ -1,0 +1,470 @@
+From 4a53b7a2ea6fbac2733e1a4dd2eec4a00fd46dfd Mon Sep 17 00:00:00 2001
+From: Eftode Andrei <andrei.eftode@isa.utm.md>
+Date: Mon, 23 Nov 2026 14:16:04 +0000
+Subject: [PATCH 1/7] Lab 18: uthread skeleton, with thread_b and thread_c
+
+---
+ user/uthread.c | 157 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 157 insertions(+)
+ create mode 100644 user/uthread.c
+
+diff --git a/user/uthread.c b/user/uthread.c
+new file mode 100644
+index 0000000..9cf130b
+--- /dev/null
++++ b/user/uthread.c
+@@ -0,0 +1,157 @@
++#include "kernel/types.h"
++#include "user/user.h"
++
++/* Possible states of a thread: */
++#define FREE        0x0
++#define RUNNING     0x1
++#define RUNNABLE    0x2
++
++#define STACK_SIZE  8192
++#define MAX_THREAD  4
++
++/* the registers a thread must keep across a switch (callee-saved) */
++struct context {
++  /* TODO: ra, sp, s0, s1, ... s11 (14 fields, each uint64) */
++};
++
++struct thread {
++  struct context ctx;                       /* saved registers */
++  char       stack[STACK_SIZE] __attribute__((aligned(16)));  /* the thread's own stack */
++  int        state;                         /* FREE, RUNNING, RUNNABLE */
++};
++struct thread all_thread[MAX_THREAD];
++struct thread *current_thread;
++extern void thread_switch(struct context *old, struct context *new);
++
++void
++thread_init(void)
++{
++  /* main() is thread 0: it will run first */
++  current_thread = &all_thread[0];
++  current_thread->state = RUNNING;
++}
++
++void
++thread_schedule(void)
++{
++  struct thread *t, *next_thread;
++
++  /* find another runnable thread, round robin */
++  next_thread = 0;
++  t = current_thread + 1;
++  for(int i = 0; i < MAX_THREAD; i++){
++    if(t >= all_thread + MAX_THREAD)
++      t = all_thread;
++    if(t->state == RUNNABLE) {
++      next_thread = t;
++      break;
++    }
++    t = t + 1;
++  }
++
++  if (next_thread == 0) {
++    printf("thread_schedule: no runnable threads\n");
++    exit(-1);
++  }
++
++  if (current_thread != next_thread) {         /* switch threads?  */
++    /* TODO: mark next_thread RUNNING, remember the old thread, make next_thread current, */
++    /*       then call thread_switch(&old->ctx, &next_thread->ctx) */
++  }
++}
++
++void
++thread_create(void (*func)())
++{
++  struct thread *t;
++
++  for (t = all_thread; t < all_thread + MAX_THREAD; t++) {
++    if (t->state == FREE) break;
++  }
++  t->state = RUNNABLE;
++  /* TODO: set t->ctx.ra and t->ctx.sp so that the first switch runs func on the thread's own stack */
++}
++
++void
++thread_yield(void)
++{
++  current_thread->state = RUNNABLE;
++  thread_schedule();
++}
++
++volatile int a_started, b_started, c_started;
++volatile int a_n, b_n, c_n;
++
++void
++thread_a(void)
++{
++  int i;
++  printf("thread_a started\n");
++  a_started = 1;
++  while(b_started == 0 || c_started == 0)
++    thread_yield();
++
++  for (i = 0; i < 100; i++) {
++    printf("thread_a %d\n", i);
++    a_n += 1;
++    thread_yield();
++  }
++  printf("thread_a: exit after %d\n", a_n);
++
++  current_thread->state = FREE;
++  thread_schedule();
++}
++
++void
++thread_b(void)
++{
++  int i;
++  printf("thread_b started\n");
++  b_started = 1;
++  while(a_started == 0 || c_started == 0)
++    thread_yield();
++
++  for (i = 0; i < 100; i++) {
++    printf("thread_b %d\n", i);
++    b_n += 1;
++    thread_yield();
++  }
++  printf("thread_b: exit after %d\n", b_n);
++
++  current_thread->state = FREE;
++  thread_schedule();
++}
++
++void
++thread_c(void)
++{
++  int i;
++  printf("thread_c started\n");
++  c_started = 1;
++  while(a_started == 0 || b_started == 0)
++    thread_yield();
++
++  for (i = 0; i < 100; i++) {
++    printf("thread_c %d\n", i);
++    c_n += 1;
++    thread_yield();
++  }
++  printf("thread_c: exit after %d\n", c_n);
++
++  current_thread->state = FREE;
++  thread_schedule();
++}
++
++int
++main(int argc, char *argv[])
++{
++  a_started = b_started = c_started = 0;
++  a_n = b_n = c_n = 0;
++  thread_init();
++  thread_create(thread_a);
++  thread_create(thread_b);
++  thread_create(thread_c);
++  current_thread->state = FREE;      /* main is done: only a, b, c remain */
++  thread_schedule();
++  exit(0);
++}
+-- 
+2.53.0
+
+
+From d68dde02bc96a4ae1c3d8900d41d81b9d4f62459 Mon Sep 17 00:00:00 2001
+From: Eftode Andrei <andrei.eftode@isa.utm.md>
+Date: Mon, 23 Nov 2026 14:16:13 +0000
+Subject: [PATCH 2/7] Lab 18: struct context, the 14 saved registers
+
+---
+ user/uthread.c | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/user/uthread.c b/user/uthread.c
+index 9cf130b..3c347c7 100644
+--- a/user/uthread.c
++++ b/user/uthread.c
+@@ -11,7 +11,20 @@
+ 
+ /* the registers a thread must keep across a switch (callee-saved) */
+ struct context {
+-  /* TODO: ra, sp, s0, s1, ... s11 (14 fields, each uint64) */
++  uint64 ra;
++  uint64 sp;
++  uint64 s0;
++  uint64 s1;
++  uint64 s2;
++  uint64 s3;
++  uint64 s4;
++  uint64 s5;
++  uint64 s6;
++  uint64 s7;
++  uint64 s8;
++  uint64 s9;
++  uint64 s10;
++  uint64 s11;
+ };
+ 
+ struct thread {
+-- 
+2.53.0
+
+
+From a3a8e3652b45857c576b581cf9ba3530a71073cb Mon Sep 17 00:00:00 2001
+From: Eftode Andrei <andrei.eftode@isa.utm.md>
+Date: Mon, 23 Nov 2026 14:16:22 +0000
+Subject: [PATCH 3/7] Lab 18: thread_create sets ra and sp
+
+---
+ user/uthread.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/user/uthread.c b/user/uthread.c
+index 3c347c7..bc901d3 100644
+--- a/user/uthread.c
++++ b/user/uthread.c
+@@ -82,7 +82,8 @@ thread_create(void (*func)())
+     if (t->state == FREE) break;
+   }
+   t->state = RUNNABLE;
+-  /* TODO: set t->ctx.ra and t->ctx.sp so that the first switch runs func on the thread's own stack */
++  t->ctx.ra = (uint64)func;                   /* the first switch returns into func */
++  t->ctx.sp = (uint64)t->stack + STACK_SIZE;  /* the stack grows down, start at the top */
+ }
+ 
+ void
+-- 
+2.53.0
+
+
+From bbf0028cf3ba1cb94bd3856ed36a91d480028456 Mon Sep 17 00:00:00 2001
+From: Eftode Andrei <andrei.eftode@isa.utm.md>
+Date: Mon, 23 Nov 2026 14:16:31 +0000
+Subject: [PATCH 4/7] Lab 18: thread_schedule calls thread_switch
+
+---
+ user/uthread.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/user/uthread.c b/user/uthread.c
+index bc901d3..e3cc78c 100644
+--- a/user/uthread.c
++++ b/user/uthread.c
+@@ -68,8 +68,10 @@ thread_schedule(void)
+   }
+ 
+   if (current_thread != next_thread) {         /* switch threads?  */
+-    /* TODO: mark next_thread RUNNING, remember the old thread, make next_thread current, */
+-    /*       then call thread_switch(&old->ctx, &next_thread->ctx) */
++    struct thread *old = current_thread;
++    next_thread->state = RUNNING;
++    current_thread = next_thread;
++    thread_switch(&old->ctx, &next_thread->ctx);
+   }
+ }
+ 
+-- 
+2.53.0
+
+
+From 72733445691cc23727e1485ba82d07d802066c63 Mon Sep 17 00:00:00 2001
+From: Eftode Andrei <andrei.eftode@isa.utm.md>
+Date: Mon, 23 Nov 2026 14:16:40 +0000
+Subject: [PATCH 5/7] Lab 18: thread_switch in assembly
+
+---
+ user/uthread_switch.S | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)
+ create mode 100644 user/uthread_switch.S
+
+diff --git a/user/uthread_switch.S b/user/uthread_switch.S
+new file mode 100644
+index 0000000..beb31cb
+--- /dev/null
++++ b/user/uthread_switch.S
+@@ -0,0 +1,35 @@
++// user/uthread_switch.S
++	.text
++	.globl thread_switch
++thread_switch:
++	sd ra, 0(a0)		# save current thread registers
++	sd sp, 8(a0)
++	sd s0, 16(a0)
++	sd s1, 24(a0)
++	sd s2, 32(a0)
++	sd s3, 40(a0)
++	sd s4, 48(a0)
++	sd s5, 56(a0)
++	sd s6, 64(a0)
++	sd s7, 72(a0)
++	sd s8, 80(a0)
++	sd s9, 88(a0)
++	sd s10, 96(a0)
++	sd s11, 104(a0)
++
++	ld ra, 0(a1)		# load next thread registers
++	ld sp, 8(a1)
++	ld s0, 16(a1)
++	ld s1, 24(a1)
++	ld s2, 32(a1)
++	ld s3, 40(a1)
++	ld s4, 48(a1)
++	ld s5, 56(a1)
++	ld s6, 64(a1)
++	ld s7, 72(a1)
++	ld s8, 80(a1)
++	ld s9, 88(a1)
++	ld s10, 96(a1)
++	ld s11, 104(a1)
++
++	ret			# return into the next thread
+-- 
+2.53.0
+
+
+From 19c8006d2e97605654b20592de35fdf9d169f92b Mon Sep 17 00:00:00 2001
+From: Eftode Andrei <andrei.eftode@isa.utm.md>
+Date: Mon, 23 Nov 2026 14:16:49 +0000
+Subject: [PATCH 6/7] Lab 18: uthread in UPROGS, with its link rule
+
+---
+ Makefile | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/Makefile b/Makefile
+index 911c7b5..435647a 100644
+--- a/Makefile
++++ b/Makefile
+@@ -151,6 +151,7 @@ UPROGS=\
+ 	$U/_grind\
+ 	$U/_wc\
+ 	$U/_zombie\
++	$U/_uthread\
+ 	$U/_semtest\
+ 	$U/_mix\
+ 	$U/_semtry\
+@@ -215,3 +216,7 @@ check-qemu-version:
+ .PHONY: fmt
+ fmt:
+ 	clang-format -i $(wildcard kernel/*.[ch] user/*.[ch] mkfs/*.c)
++
++$U/_uthread: $U/uthread.o $U/uthread_switch.o $(ULIB) $U/user.ld
++	$(LD) $(LDFLAGS) -T $U/user.ld -o $U/_uthread $U/uthread.o $U/uthread_switch.o $(ULIB)
++	$(OBJDUMP) -S $U/_uthread > $U/uthread.asm
+-- 
+2.53.0
+
+
+From 39ab75b8511ad3d6dff7c879650c376fdf3f556e Mon Sep 17 00:00:00 2001
+From: Eftode Andrei <andrei.eftode@isa.utm.md>
+Date: Mon, 23 Nov 2026 14:19:16 +0000
+Subject: [PATCH 7/7] Lab 18: notes.txt
+
+---
+ notes.txt | 92 +++++++++++++------------------------------------------
+ 1 file changed, 21 insertions(+), 71 deletions(-)
+
+diff --git a/notes.txt b/notes.txt
+index e3922e5..902a0ac 100644
+--- a/notes.txt
++++ b/notes.txt
+@@ -1,71 +1,21 @@
+-Lab 13 - Semaphores in Your Own Kernel (xv6)
+-
+-Student: Eftode Andrei, FAF-242
+-Tree: ~/xv6-riscv, branch lab (xv6 revision 06aad25 plus Labs 4, 6, 8 and 10)
+-
+-Numbers
+-  24 sem_init, 25 sem_down, 26 sem_up (the sheet demands them)
+-  27 sem_trydown (the optional part)
+-  28 sysinfo: my Lab 10 sysinfo had 24, so I moved it to free that number
+-
+-Check 1 (Part 1 only):
+-  $ semtest
+-  3 semtest: unknown sys call 24
+-  4 semtest: unknown sys call 25
+-  child: I ran after the parent
+-  parent: done, I let the child go
+-
+-Check 2 (Parts 1 and 2):
+-  $ semtest
+-  parent: done, I let the child go
+-  child: I ran after the parent
+-  ping 1
+-    pong 1
+-  ping 2
+-    pong 2
+-  ping 3
+-    pong 3
+-  semtest: OK
+-
+-Observe
+-
+-1. One line of mix costs 31 write() system calls: 30 letters and the
+-   new line. Between two of these calls the other process, running on
+-   another CPU, can write its own letter. So the letters mix.
+-
+-2. sem_down(3); before the inner for, and sem_up(3); after it. Everything
+-   between them, the 31 writes of one line, is the critical section.
+-
+-3. wakeup(s) wakes every process that sleeps on s, but sem_up added only
+-   one unit. The first to get the spinlock takes it; the others find
+-   value 0 again and must go back to sleep. A process that never slept
+-   can also take the unit first.
+-
+-4. sem_up needs the same spinlock, so it would spin forever and nobody
+-   could wake the sleeper. This kernel stops even earlier: I removed the
+-   release() line in a separate copy of the tree, and semtest printed
+-   "panic: sched locks". The check is in sched(), kernel/proc.c: a
+-   process may hold only its own p->lock when it gives up the CPU.
+-
+-Optional: sem_trydown (number 27)
+-  kernel/sem.c    sys_sem_trydown(): value 0 -> release the lock, return -1
+-  user/semtry.c   shows both answers
+-
+-  $ semtry
+-  first try: 0
+-  second try: -1
+-  after sem_up: 0
+-
+-Still working after the change of numbers:
+-  $ sysinfo
+-  free memory: 133251072 bytes (32532 pages)
+-  processes in use: 3
+-  with a bad pointer sysinfo returns -1
+-  $ trace 117440512 semtest      (bits 24, 25 and 26: the three calls)
+-  4: syscall sem_init -> 0
+-  parent: done, I let the child go
+-  4: syscall sem_up -> 0
+-  5: syscall sem_down -> 0
+-  child: I ran after the parent
+-  ...
+-  semtest: OK
++Lab 18 - Build a User-Level Thread Switch
++Eftode Andrei, FAF-242
++
++Observe: What exactly does thread_switch save and load? Why is ra the
++register that makes execution continue in the other thread?
++
++thread_switch saves 14 registers of the old thread into its struct context:
++ra, sp and s0 to s11. Each one is 8 bytes, so a context is 112 bytes. Then it
++loads the same 14 registers from the context of the new thread.
++
++These are the callee-saved registers, the ones a function must give back
++unchanged. The other registers (t0-t6, a0-a7) do not need saving: the C
++compiler already keeps what it still needs from them before it calls
++thread_switch, as before any function call.
++
++ra matters because the last instruction is ret, and ret means "jump to the
++address in ra". After the load, ra holds the address saved by the other
++thread, so ret lands right after that thread's own call to thread_switch.
++For a new thread, thread_create put the address of its function in ra, so the
++first ret starts the function. sp is loaded together with ra, so the thread
++also continues on its own stack.
+-- 
+2.53.0
+
